@@ -26,6 +26,16 @@
     const sendBtn = document.getElementById("send-btn");
     const backendUrl = "https://shakeel401-maharani-chatbot.hf.space/chat";
 
+    // 🔑 Get or create thread_id for this browser
+    let threadId = localStorage.getItem("maharani_thread_id");
+    if (!threadId) {
+      threadId = "thread_" + crypto.randomUUID();
+      localStorage.setItem("maharani_thread_id", threadId);
+      console.log("🆕 Created new thread ID:", threadId);
+    } else {
+      console.log("🔄 Loaded existing thread ID:", threadId);
+    }
+
     function addMessage(content, sender) {
       const message = document.createElement("div");
       message.classList.add("chat-message", sender);
@@ -58,7 +68,7 @@
         const res = await fetch(backendUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query })
+          body: JSON.stringify({ query, thread_id: threadId })
         });
 
         const data = await res.json();
