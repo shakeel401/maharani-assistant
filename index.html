@@ -29,7 +29,9 @@
     // ✅ Force all links to open in new tab
     const renderer = new marked.Renderer();
     renderer.link = function(href, title, text) {
-      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+      const cleanHref = typeof href === "string" ? href : "";
+      const cleanText = typeof text === "string" ? text : "";
+      return `<a href="${cleanHref}" target="_blank" rel="noopener noreferrer">${cleanText}</a>`;
     };
     marked.setOptions({ renderer });
 
@@ -48,7 +50,10 @@
       message.classList.add("chat-message", sender);
 
       if (sender === "bot") {
-        message.innerHTML = marked.parse(content);
+        const safeContent = (typeof content === "string") 
+          ? content 
+          : JSON.stringify(content, null, 2); // Fallback: show object nicely
+        message.innerHTML = marked.parse(safeContent);
       } else {
         message.textContent = content;
       }
