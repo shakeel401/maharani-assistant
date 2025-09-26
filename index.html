@@ -47,17 +47,19 @@
     function addMessage(content, sender) {
       const message = document.createElement("div");
       message.classList.add("chat-message", sender);
-
+    
+      // 🔑 Force content into a string
+      const safeContent = typeof content === "string" ? content : JSON.stringify(content);
+    
       if (sender === "bot") {
-        message.innerHTML = marked.parse(content);
+        message.innerHTML = marked.parse(safeContent);
       } else {
-        message.textContent = content;
+        message.textContent = safeContent;
       }
-
+    
       chatBox.appendChild(message);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
-
     async function sendMessage() {
       const query = userInput.value.trim();
       if (!query) return;
