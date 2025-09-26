@@ -26,15 +26,6 @@
     const sendBtn = document.getElementById("send-btn");
     const backendUrl = "https://shakeel401-maharani-chatbot.hf.space/chat";
 
-    // ✅ Force all links to open in new tab
-    const renderer = new marked.Renderer();
-    renderer.link = function(href, title, text) {
-      const cleanHref = typeof href === "string" ? href : "";
-      const cleanText = typeof text === "string" ? text : "";
-      return `<a href="${cleanHref}" target="_blank" rel="noopener noreferrer">${cleanText}</a>`;
-    };
-    marked.setOptions({ renderer });
-
     // 🔑 Get or create thread_id for this browser
     let threadId = localStorage.getItem("maharani_thread_id");
     if (!threadId) {
@@ -45,15 +36,20 @@
       console.log("🔄 Loaded existing thread ID:", threadId);
     }
 
+    // ✅ Configure marked to open links in new tab
+    const renderer = new marked.Renderer();
+    renderer.link = function(href, title, text) {
+      const t = title ? ` title="${title}"` : "";
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer"${t}>${text}</a>`;
+    };
+    marked.setOptions({ renderer });
+
     function addMessage(content, sender) {
       const message = document.createElement("div");
       message.classList.add("chat-message", sender);
 
       if (sender === "bot") {
-        const safeContent = (typeof content === "string") 
-          ? content 
-          : JSON.stringify(content, null, 2); // Fallback: show object nicely
-        message.innerHTML = marked.parse(safeContent);
+        message.innerHTML = marked.parse(content);
       } else {
         message.textContent = content;
       }
