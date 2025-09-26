@@ -36,12 +36,20 @@
       console.log("🔄 Loaded existing thread ID:", threadId);
     }
 
+    // ✅ One clean version of addMessage
     function addMessage(content, sender) {
       const message = document.createElement("div");
       message.classList.add("chat-message", sender);
 
       if (sender === "bot") {
         message.innerHTML = marked.parse(content);
+
+        // Ensure all links open in a new tab/window
+        const links = message.querySelectorAll("a");
+        links.forEach(link => {
+          link.setAttribute("target", "_blank");
+          link.setAttribute("rel", "noopener noreferrer");
+        });
       } else {
         message.textContent = content;
       }
@@ -54,26 +62,22 @@
       const query = userInput.value.trim();
       if (!query) return;
 
-      function addMessage(content, sender) {
-        const message = document.createElement("div");
-        message.classList.add("chat-message", sender);
-    
-        if (sender === "bot") {
-          message.innerHTML = marked.parse(content);
-    
-          // Ensure all links open in a new tab/window
-          const links = message.querySelectorAll("a");
-          links.forEach(link => {
-            link.setAttribute("target", "_blank");
-            link.setAttribute("rel", "noopener noreferrer");
-          });
-        } else {
-          message.textContent = content;
-        }
-    
-        chatBox.appendChild(message);
-        chatBox.scrollTop = chatBox.scrollHeight;
-      }
+      addMessage(query, "user");
+      userInput.value = "";
+
+      // Typing indicator
+      const typingMsg = document.createElement("div");
+      typingMsg.classList.add("chat-message", "bot", "typing");
+      typingMsg.textContent = "Maharani is typing...";
+      chatBox.appendChild(typingMsg);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      try {
+        const res = await fetch(backendUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, thread_id: threadId }) // ✅ send thread ID too
+        });
 
         const data = await res.json();
         typingMsg.remove();
