@@ -48,7 +48,6 @@
     // Custom marked renderer so links generated from Markdown get target="_blank"
     const renderer = new marked.Renderer();
     renderer.link = function(href, title, text) {
-      // coerce href to string safely
       const hrefStr = (typeof href === "string") ? href : (href && href.href) ? href.href : String(href || "");
       const safeHref = escapeHtml(hrefStr);
       const safeText = escapeHtml(text || safeHref);
@@ -56,6 +55,85 @@
       return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer"${titleAttr}>${safeText}</a>`;
     };
     marked.setOptions({ renderer });
+
+    // ---------- Linkify plain text (URLs, mailto, emails, phones) ----------
+    // Scans text nodes (excluding existing anchors/code/pre) and replaces URLs/emails/phones with <a>
+    function linkifyElement(root) {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+      const textNodes = [];
+      while (walker.nextNode()) {
+        const node = walker.currentNode;
+        if (!node.nodeValue || !node.nodeValue.trim()) continue;
+        const parentTag = node.parentNode && node.parentNode.nodeName.toLowerCase();
+        if (["a", "code", "pre", "script", "style"].includes(parentTag)) continue;
+        textNodes.push(node);
+      }
+
+      // Combined regex: https://..., www..., mailto:..., plain emails, basic phone pattern
+      const regex = /(https?:\/\/[^\s<)]+)|(www\.[^\s<)]+)|(mailto:[^\s<)]+)|([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})|(\+?\d[\d\-\s]{6,}\d)/g;
+
+      textNodes.forEach(node => {
+        const text = node.nodeValue;
+        let lastIndex = 0;
+        const frag = document.createDocumentFragment();
+        regex.lastIndex = 0;
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+          const matchStr = match[0];
+          const matchIndex = match.index;
+
+          // append text before match
+          if (matchIndex > lastIndex) {
+            frag.appendChild(document.createTextNode(text.slice(lastIndex, matchIndex)));
+          }
+
+          // trim trailing punctuation from match (common end char . , ; : ) ? ! )
+          let display = matchStr;
+          let trailing = "";
+          while (/[.,;:!?)]$/.test(display)) {
+            trailing = display.slice(-1) + trailing;
+            display = display.slice(0, -1);
+          }
+
+          let href = display;
+          let visibleText = display;
+
+          if (/^https?:\/\//i.test(display) || /^www\./i.test(display)) {
+            if (/^www\./i.test(display)) href = "https://" + display;
+          } else if (/^mailto:/i.test(display)) {
+            // display without the mailto: prefix
+            visibleText = display.replace(/^mailto:/i, "");
+            href = display;
+          } else if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(display)) {
+            href = "mailto:" + display;
+          } else if (/^\+?\d[\d\-\s]{6,}\d$/.test(display)) {
+            // phone: normalize digits (keep leading + if present)
+            const digits = display.replace(/[^\d+]/g, "");
+            href = "tel:" + digits;
+            // keep visibleText as original format
+          }
+
+          // create anchor
+          const a = document.createElement("a");
+          a.href = href;
+          a.textContent = visibleText;
+          a.setAttribute("target", "_blank");
+          a.setAttribute("rel", "noopener noreferrer");
+          frag.appendChild(a);
+
+          // append any trailing punctuation we removed
+          if (trailing) frag.appendChild(document.createTextNode(trailing));
+
+          lastIndex = matchIndex + matchStr.length;
+        }
+
+        // if any matches were found, replace node
+        if (lastIndex > 0) {
+          if (lastIndex < text.length) frag.appendChild(document.createTextNode(text.slice(lastIndex)));
+          node.parentNode.replaceChild(frag, node);
+        }
+      });
+    }
 
     // 🔑 Get or create thread_id for this browser
     let threadId = localStorage.getItem("maharani_thread_id");
@@ -66,10 +144,11 @@
     } else {
       console.log("🔄 Loaded existing thread ID:", threadId);
     }
+
     function addMessage(content, sender) {
       const message = document.createElement("div");
       message.classList.add("chat-message", sender);
-    
+
       if (sender === "bot") {
         // Use response string directly
         let safeContent =
@@ -78,20 +157,22 @@
             : (content && content.response)
             ? content.response
             : JSON.stringify(content, null, 2);
-    
+
         // Render Markdown as HTML
         message.innerHTML = marked.parse(safeContent);
-    
-        // Ensure links open in a new tab
+
+        // Post-process DOM:
+        // 1) convert any remaining plain URLs / emails / phones into anchors
+        linkifyElement(message);
+        // 2) extra safety to ensure all anchors open in new tab
         ensureLinksOpenInNewTab(message);
       } else {
         message.textContent = content;
       }
-    
+
       chatBox.appendChild(message);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
-
 
     async function sendMessage() {
       const query = userInput.value.trim();
