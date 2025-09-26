@@ -66,26 +66,23 @@
     } else {
       console.log("🔄 Loaded existing thread ID:", threadId);
     }
-
     function addMessage(content, sender) {
       const message = document.createElement("div");
       message.classList.add("chat-message", sender);
     
       if (sender === "bot") {
+        // Use response string directly
         let safeContent =
           typeof content === "string"
             ? content
-            : (content && content.response) ? content.response : JSON.stringify(content, null, 2);
+            : (content && content.response)
+            ? content.response
+            : JSON.stringify(content, null, 2);
     
-        // ✅ Auto-link plain emails into clickable mailto links
-        safeContent = safeContent.replace(
-          /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
-          "[$1](mailto:$1)"
-        );
-    
+        // Render Markdown as HTML
         message.innerHTML = marked.parse(safeContent);
     
-        // Ensure all links open in a new tab
+        // Ensure links open in a new tab
         ensureLinksOpenInNewTab(message);
       } else {
         message.textContent = content;
