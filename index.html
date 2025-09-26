@@ -26,6 +26,13 @@
     const sendBtn = document.getElementById("send-btn");
     const backendUrl = "https://shakeel401-maharani-chatbot.hf.space/chat";
 
+    // ✅ Force all links to open in new tab
+    const renderer = new marked.Renderer();
+    renderer.link = function(href, title, text) {
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+    };
+    marked.setOptions({ renderer });
+
     // 🔑 Get or create thread_id for this browser
     let threadId = localStorage.getItem("maharani_thread_id");
     if (!threadId) {
