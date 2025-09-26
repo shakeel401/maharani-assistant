@@ -70,24 +70,31 @@
     function addMessage(content, sender) {
       const message = document.createElement("div");
       message.classList.add("chat-message", sender);
-
+    
       if (sender === "bot") {
-        // ensure content is string before passing to marked
-        const safeContent =
+        let safeContent =
           typeof content === "string"
             ? content
             : (content && content.response) ? content.response : JSON.stringify(content, null, 2);
-
+    
+        // ✅ Auto-link plain emails into clickable mailto links
+        safeContent = safeContent.replace(
+          /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g,
+          "[$1](mailto:$1)"
+        );
+    
         message.innerHTML = marked.parse(safeContent);
-        // Extra safety: make sure any anchors in the produced HTML open in new tab
+    
+        // Ensure all links open in a new tab
         ensureLinksOpenInNewTab(message);
       } else {
         message.textContent = content;
       }
-
+    
       chatBox.appendChild(message);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
+
 
     async function sendMessage() {
       const query = userInput.value.trim();
