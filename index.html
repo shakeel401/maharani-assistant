@@ -24,7 +24,10 @@
     const chatBox = document.getElementById("chat-box");
     const userInput = document.getElementById("user-input");
     const sendBtn = document.getElementById("send-btn");
+
+    // ⚡ Your deployed FastAPI backend
     const backendUrl = "https://shakeel401-maharani-chatbot.hf.space/chat";
+    const flagUrl = "https://shakeel401-maharani-chatbot.hf.space/flag";
 
     // 🔑 Get or create thread_id for this browser
     let threadId = localStorage.getItem("maharani_thread_id");
@@ -36,20 +39,32 @@
       console.log("🔄 Loaded existing thread ID:", threadId);
     }
 
-    // ✅ One clean version of addMessage
-    function addMessage(content, sender) {
+    // ✅ Store conversation IDs returned by backend
+    const conversationMap = [];
+
+    // ✅ Add message to UI
+    function addMessage(content, sender, conversationId = null) {
       const message = document.createElement("div");
       message.classList.add("chat-message", sender);
 
       if (sender === "bot") {
         message.innerHTML = marked.parse(content);
 
-        // Ensure all links open in a new tab/window
+        // Ensure links open in new tab
         const links = message.querySelectorAll("a");
         links.forEach(link => {
           link.setAttribute("target", "_blank");
           link.setAttribute("rel", "noopener noreferrer");
         });
+
+        // ➕ Add a "Flag" button for each bot response
+        if (conversationId) {
+          const flagBtn = document.createElement("button");
+          flagBtn.textContent = "🚩 Flag";
+          flagBtn.classList.add("flag-btn");
+          flagBtn.onclick = () => flagConversation(conversationId);
+          message.appendChild(flagBtn);
+        }
       } else {
         message.textContent = content;
       }
@@ -58,6 +73,7 @@
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
+    // ✅ Send user message to backend
     async function sendMessage() {
       const query = userInput.value.trim();
       if (!query) return;
@@ -76,15 +92,39 @@
         const res = await fetch(backendUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, thread_id: threadId }) // ✅ send thread ID too
+          body: JSON.stringify({ query, thread_id: threadId })
         });
 
         const data = await res.json();
         typingMsg.remove();
-        addMessage(data.response, "bot");
+
+        // Save conversationId with response
+        conversationMap.push(data.conversation_id);
+
+        addMessage(data.response, "bot", data.conversation_id);
       } catch (error) {
         typingMsg.remove();
         addMessage("⚠️ Error connecting to chatbot.", "bot");
+      }
+    }
+
+    // ✅ Flag conversation
+    async function flagConversation(conversationId) {
+      try {
+        const res = await fetch(flagUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            thread_id: threadId,
+            conversation_id: conversationId,
+            assigned_to: "admin" // default escalation target
+          })
+        });
+
+        const data = await res.json();
+        alert("🚩 Conversation flagged: " + JSON.stringify(data));
+      } catch (error) {
+        alert("⚠️ Failed to flag conversation.");
       }
     }
 
