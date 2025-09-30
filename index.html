@@ -110,6 +110,9 @@
 
     // ✅ Flag conversation
     async function flagConversation(conversationId) {
+      const confirmFlag = confirm("⚠️ Are you sure you want to flag this conversation?");
+      if (!confirmFlag) return; // Exit if user cancels
+    
       try {
         const res = await fetch(flagUrl, {
           method: "POST",
@@ -120,13 +123,14 @@
             assigned_to: "admin" // default escalation target
           })
         });
-
+    
         const data = await res.json();
         alert("🚩 Conversation flagged: " + JSON.stringify(data));
       } catch (error) {
         alert("⚠️ Failed to flag conversation.");
       }
     }
+
 
     sendBtn.addEventListener("click", sendMessage);
     userInput.addEventListener("keypress", e => {
